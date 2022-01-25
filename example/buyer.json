@@ -1,0 +1,31 @@
+[
+	{
+		"name": "Test Buyer Creation",
+		"endpoint": "/buyer",
+		"method": "POST",
+		"body": {},
+		"expectedStatus": 201,
+		"expectedBody": {
+			"id": "1",
+			"name": "Test Buyer",
+			"address": "Test Address",
+			"phone": "1234567890",
+			"email": "1"
+		}
+	},
+	{
+		"name": "Test Buyer Creation with invalid email",
+		"endpoint": "/buyer",
+		"method": "POST",
+		"body": {
+			"name": "Test Buyer",
+			"address": "Test Address",
+			"phone": "1234567890",
+			"email": "invalid"
+		},
+		"expectedStatus": 400,
+		"expectedBody": {
+			"error": "Invalid email"
+		}
+	}
+]
