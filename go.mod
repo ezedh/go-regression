@@ -1,4 +1,4 @@
-module github.com/ezegrosfeld/go-regression
+module github.com/ezedh/go-regression
 
 go 1.17
 

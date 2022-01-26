@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 
-	"github.com/ezegrosfeld/go-regression/internal"
-	"github.com/ezegrosfeld/go-regression/service"
+	"github.com/ezedh/go-regression/internal"
+	"github.com/ezedh/go-regression/service"
 )
 
 func main() {

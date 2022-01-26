@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ezegrosfeld/go-regression/internal"
-	"github.com/ezegrosfeld/go-regression/model"
+	"github.com/ezedh/go-regression/internal"
+	"github.com/ezedh/go-regression/model"
 	"github.com/google/go-cmp/cmp"
 	"go.uber.org/zap"
 )
