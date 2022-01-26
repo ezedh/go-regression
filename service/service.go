@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -119,6 +120,13 @@ func (s *service) RunRegression() {
 	close(ch)
 
 	result.Results = groupResults
+
+	t, p, f := s.getTotalsFromGroups(groupResults)
+
+	result.Total = t
+	result.Passed = p
+	result.Failed = f
+
 	s.result = result
 
 }
@@ -161,6 +169,7 @@ func (s *service) runSingleTest(test model.Test) *model.TestResult {
 
 	resp, r, err := executeRequest(s.regre.BaseURL+test.Endpoint, string(b), test.Method, []http.Header{s.regre.Header, test.Header})
 	if err != nil {
+		fmt.Println(err.Error())
 		result.Pass = false
 		result.Error = err.Error()
 		return result
@@ -248,6 +257,19 @@ func (s *service) createSubgroupResults(gr *model.GroupResult) {
 	}
 
 	gr.SubgroupResults = sgr
+}
+
+func (s *service) getTotalsFromGroups(groups []model.GroupResult) (int, int, int) {
+	s.log.Infow("Getting totals from groups")
+	var t, p, f int
+
+	for _, g := range groups {
+		t += g.Total
+		p += g.Passed
+		f += g.Failed
+	}
+
+	return t, p, f
 }
 
 func executeRequest(url, body, method string, headers []http.Header) (*http.Response, map[string]interface{}, error) {
