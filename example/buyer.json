@@ -2,6 +2,7 @@
 	{
 		"name": "Test Buyer Creation",
 		"endpoint": "/buyer",
+		"subgroup": "buyer creation",
 		"method": "POST",
 		"body": {},
 		"expectedStatus": 201,
@@ -16,6 +17,7 @@
 	{
 		"name": "Test Buyer Creation with invalid email",
 		"endpoint": "/buyer",
+		"subgroup": "buyer creation",
 		"method": "POST",
 		"body": {
 			"name": "Test Buyer",

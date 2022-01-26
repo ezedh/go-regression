@@ -5,7 +5,7 @@ import "net/http"
 type (
 	Test struct {
 		Name           string                 `json:"name"`
-		Group          string                 `json:"group"`
+		Subgroup       string                 `json:"subgroup"`
 		Endpoint       string                 `json:"endpoint"`
 		Method         string                 `json:"method"`
 		Body           map[string]interface{} `json:"body"`
@@ -14,9 +14,14 @@ type (
 		Header         http.Header            `json:"header,omitempty"`
 	}
 
+	Group struct {
+		Name  string `json:"name"`
+		Tests []Test `json:"tests"`
+	}
+
 	Regression struct {
 		Name    string      `json:"name"`
-		Tests   []Test      `json:"tests"`
+		Groups  []Group     `json:"groups"`
 		BaseURL string      `json:"baseURL"`
 		Header  http.Header `json:"header,omitempty"`
 		Sync    bool        `json:"async,omitempty"`
@@ -24,7 +29,8 @@ type (
 
 	TestResult struct {
 		Name     string      `json:"name"`
-		Group    string      `json:"group,omitempty"`
+		Group    string      `json:"-"`
+		Subgroup string      `json:"-"`
 		Path     string      `json:"path"`
 		Pass     bool        `json:"pass"`
 		Cause    Cause       `json:"cause,omitempty"`
@@ -33,12 +39,20 @@ type (
 		Error    string      `json:"error,omitempty"`
 	}
 
+	SubgroupResult struct {
+		Name   string `json:"name"`
+		Total  int    `json:"total"`
+		Passed int    `json:"passed"`
+		Failed int    `json:"failed"`
+	}
+
 	GroupResult struct {
-		Name    string       `json:"name"`
-		Results []TestResult `json:"results"`
-		Total   int          `json:"total"`
-		Passed  int          `json:"passed"`
-		Failed  int          `json:"failed"`
+		Name            string           `json:"name"`
+		Results         []TestResult     `json:"results"`
+		SubgroupResults []SubgroupResult `json:"subgroup_results"`
+		Total           int              `json:"total"`
+		Passed          int              `json:"passed"`
+		Failed          int              `json:"failed"`
 	}
 
 	RegressionResult struct {

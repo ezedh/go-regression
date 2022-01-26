@@ -52,6 +52,8 @@ func (s *service) GetRegression(path string) error {
 		return err
 	}
 
+	var groups []model.Group
+
 	// Loop through all the files
 	for _, file := range files {
 		if file.Name() == "config.json" {
@@ -69,18 +71,19 @@ func (s *service) GetRegression(path string) error {
 			}
 
 			// set group as the file name without the .json
-			group := strings.Replace(file.Name(), ".json", "", -1)
+			g := strings.Replace(file.Name(), ".json", "", -1)
 
-			// Loop through all the tests
-			for i := 0; i < len(tests); i++ {
-				// Add the group to the test
-				tests[i].Group = group
-			}
+			// Add the group to the groups
+			groups = append(groups, model.Group{
+				Name:  g,
+				Tests: tests,
+			})
 
 			s.log.Infow("Parsed test file", "file", file.Name())
-			regre.Tests = append(regre.Tests, tests...)
 		}
 	}
+
+	regre.Groups = groups
 
 	s.regre = regre
 
@@ -95,52 +98,27 @@ func (s *service) RunRegression() {
 	result.Name = s.regre.Name
 
 	// Create channel for results
-	ch := make(chan model.TestResult, len(s.regre.Tests))
+	ch := make(chan model.GroupResult, len(s.regre.Groups))
 	// Create channel for errors
 
 	// Loop through all the tests
-	for _, test := range s.regre.Tests {
+	for _, test := range s.regre.Groups {
 		t := test
-		go s.runTest(ch, s.regre.BaseURL, s.regre.Header, t)
+		go s.runGroup(ch, t)
 	}
 
-	groupResults := make(map[string][]model.TestResult)
+	var groupResults []model.GroupResult
 	// Wait for all the goroutines to finish
-	//wg.Wait()
+
 	// listen the channel for results
-	for i := 0; i < len(s.regre.Tests); i++ {
+	for i := 0; i < len(s.regre.Groups); i++ {
 		c := <-ch
-		s.log.Infow("Received result", "result", c)
-		groupResults[c.Group] = append(groupResults[c.Group], c)
+		groupResults = append(groupResults, c)
 	}
 
 	close(ch)
 
-	var groups []model.GroupResult
-
-	// Loop through all the groups
-	for group, results := range groupResults {
-		g := new(model.GroupResult)
-		g.Name = group
-		g.Total = len(results)
-
-		for _, r := range results {
-			result.Total++
-			r.Group = ""
-			g.Results = append(g.Results, r)
-			if r.Pass {
-				g.Passed++
-				result.Passed++
-			} else {
-				g.Failed++
-				result.Failed++
-			}
-		}
-
-		groups = append(groups, *g)
-	}
-
-	result.Results = groups
+	result.Results = groupResults
 	s.result = result
 
 }
@@ -171,49 +149,22 @@ func (s *service) GenerateReport() {
 	s.log.Infow("Finished generating report")
 }
 
-// Run test and return the result throw the channel
-func (s *service) runTest(ch chan model.TestResult, url string, header http.Header, test model.Test) {
-	s.log.Infow("Running test", "test", test.Name)
-
+func (s *service) runSingleTest(test model.Test) *model.TestResult {
+	s.log.Infow("Running test", "test", test.Name, "endpoint", test.Endpoint, "method", test.Method)
 	result := new(model.TestResult)
 	result.Name = test.Name
 	result.Path = test.Endpoint
-	result.Group = test.Group
-
-	// Create a new client
-	client := http.Client{}
+	result.Subgroup = test.Subgroup
 
 	// test.Body to io.Reader for request
 	b, _ := json.Marshal(test.Body)
 
-	// Create a new request
-	req, err := http.NewRequest(test.Method, url+test.Endpoint, strings.NewReader(string(b)))
+	resp, r, err := executeRequest(s.regre.BaseURL+test.Endpoint, string(b), test.Method, []http.Header{s.regre.Header, test.Header})
 	if err != nil {
 		result.Pass = false
 		result.Error = err.Error()
-		ch <- *result
-		return
+		return result
 	}
-
-	// merge test headers with regression headers
-	for k, v := range header {
-		req.Header[k] = v
-	}
-
-	// Add test headers
-	for k, v := range test.Header {
-		req.Header[k] = v
-	}
-
-	// Send the request
-	resp, err := client.Do(req)
-	if err != nil {
-		result.Pass = false
-		result.Error = err.Error()
-		ch <- *result
-		return
-	}
-	defer resp.Body.Close()
 
 	pass := true
 	var cause model.Cause
@@ -223,28 +174,7 @@ func (s *service) runTest(ch chan model.TestResult, url string, header http.Head
 		pass = false
 	}
 
-	// Check if body was the expected (compare strings)
-	var res map[string]interface{}
-
-	// resp.Body to res
-	d, err := io.ReadAll(resp.Body)
-	if err != nil {
-		s.log.Errorw("Error reading response body", "error", err)
-		result.Pass = false
-		result.Error = err.Error()
-		ch <- *result
-		return
-	}
-	err = json.Unmarshal(d, &res)
-	if err != nil {
-		s.log.Errorw("Error unmarshalling body", "error", err)
-		result.Pass = false
-		result.Error = err.Error()
-		ch <- *result
-		return
-	}
-
-	if test.ExpectedBody != nil && !cmp.Equal(res, test.ExpectedBody) {
+	if test.ExpectedBody != nil && !cmp.Equal(r, test.ExpectedBody) {
 		cause = model.BodyMissmatch
 		pass = false
 	}
@@ -259,9 +189,103 @@ func (s *service) runTest(ch chan model.TestResult, url string, header http.Head
 			result.Actual = resp.StatusCode
 		case model.BodyMissmatch:
 			result.Expected = test.ExpectedBody
-			result.Actual = res
+			result.Actual = r
 		}
 	}
 
+	return result
+}
+
+func (s *service) runGroup(ch chan model.GroupResult, group model.Group) {
+	s.log.Infow("Running group", "group", group.Name)
+	result := new(model.GroupResult)
+	result.Name = group.Name
+
+	for _, test := range group.Tests {
+		result.Total++
+		t := *s.runSingleTest(test)
+
+		if t.Pass {
+			result.Passed++
+		} else {
+			result.Failed++
+		}
+
+		result.Results = append(result.Results, t)
+	}
+
+	s.createSubgroupResults(result)
+
 	ch <- *result
+}
+
+func (s *service) createSubgroupResults(gr *model.GroupResult) {
+	s.log.Infow("Creating subgroup results", "group", gr.Name)
+	var sgr []model.SubgroupResult
+
+	tm := make(map[string]int)
+	pm := make(map[string]int)
+	fm := make(map[string]int)
+
+	for _, r := range gr.Results {
+		group := r.Subgroup
+
+		tm[group] += 1
+		if r.Pass {
+			pm[group] += 1
+		} else {
+			fm[group] += 1
+		}
+	}
+
+	for k, v := range tm {
+		sgr = append(sgr, model.SubgroupResult{
+			Name:   k,
+			Total:  v,
+			Passed: pm[k],
+			Failed: fm[k],
+		})
+	}
+
+	gr.SubgroupResults = sgr
+}
+
+func executeRequest(url, body, method string, headers []http.Header) (*http.Response, map[string]interface{}, error) {
+	// Create a new client
+	client := http.Client{}
+
+	// Create a new request
+	req, err := http.NewRequest(method, url, strings.NewReader(body))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// merge test headers with regression headers
+	for _, v := range headers {
+		for kk, vv := range v {
+			req.Header[kk] = vv
+		}
+	}
+
+	// Send the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	// Check if body was the expected (compare strings)
+	var res map[string]interface{}
+
+	// resp.Body to res
+	d, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = json.Unmarshal(d, &res)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, res, nil
 }
