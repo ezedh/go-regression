@@ -185,6 +185,7 @@ func TestSingleTestNotPassMissmatchedStatus(t *testing.T) {
 		Endpoint:       "/test",
 		Method:         "GET",
 		ExpectedStatus: 201,
+		ExpectedBody:   map[string]interface{}{"test": "test"},
 	}
 
 	s := setupService()
