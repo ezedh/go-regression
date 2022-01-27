@@ -182,7 +182,7 @@ func (s *service) runSingleTest(test model.Test) *model.TestResult {
 		pass = false
 	}
 
-	if test.ExpectedBody != nil && !cmp.Equal(r, test.ExpectedBody) {
+	if pass && test.ExpectedBody != nil && !cmp.Equal(r, test.ExpectedBody) {
 		cause = model.BodyMissmatch
 		pass = false
 	}
