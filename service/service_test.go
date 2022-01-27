@@ -233,3 +233,16 @@ func TestSingleTestNotPassMissmatchedBody(t *testing.T) {
 	a.Equal(test.ExpectedBody, res.Expected)
 	a.Equal(map[string]interface{}{"test": "test"}, res.Actual)
 }
+
+func TestExecuteFails404(t *testing.T) {
+	a := assert.New(t)
+
+	h := setupMockServer()
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, _, err := executeRequest("http://127.0.0.1:8080/no", "", "GET", []http.Header{})
+	a.NoError(err)
+
+	a.Equal(404, resp.StatusCode)
+}

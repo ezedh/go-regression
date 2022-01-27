@@ -8,6 +8,10 @@ import (
 )
 
 func NewLogger() *zap.Logger {
+	if os.Getenv("REGRE_MOD") == "debug" {
+		l, _ := zap.NewDevelopment()
+		return l
+	}
 	// crate new custom logger without timestamp and caller
 	encConfig := zap.NewProductionEncoderConfig()
 	encConfig.CallerKey = ""

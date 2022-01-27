@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -169,7 +168,7 @@ func (s *service) runSingleTest(test model.Test) *model.TestResult {
 
 	resp, r, err := executeRequest(s.regre.BaseURL+test.Endpoint, string(b), test.Method, []http.Header{s.regre.Header, test.Header})
 	if err != nil {
-		fmt.Println(err.Error())
+		s.log.Debugw("Error executing request", "error", err)
 		result.Pass = false
 		result.Error = err.Error()
 		return result
@@ -296,8 +295,11 @@ func executeRequest(url, body, method string, headers []http.Header) (*http.Resp
 	}
 	defer resp.Body.Close()
 
-	// Check if body was the expected (compare strings)
-	var res map[string]interface{}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return resp, nil, nil
+	}
+
+	res := make(map[string]interface{})
 
 	// resp.Body to res
 	d, err := io.ReadAll(resp.Body)
