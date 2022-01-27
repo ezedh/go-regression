@@ -261,3 +261,27 @@ func TestExecuteFails404(t *testing.T) {
 	a.Equal(201, res.Expected)
 	a.Equal(404, res.Actual)
 }
+
+func TestExecutePass404(t *testing.T) {
+	a := assert.New(t)
+	test := model.Test{
+		Name:           "Test",
+		Subgroup:       "subgroup",
+		Endpoint:       "/test",
+		Method:         "GET",
+		ExpectedStatus: 404,
+	}
+
+	s := setupService()
+	err := s.GetRegression("/tmp/test_go_regression")
+	a.NoError(err)
+
+	h := setupMockServer("/whatever")
+	srv := httptest.NewServer(h)
+	s.regre.BaseURL = srv.URL
+	defer srv.Close()
+
+	res := s.runSingleTest(test)
+
+	a.True(res.Pass)
+}
