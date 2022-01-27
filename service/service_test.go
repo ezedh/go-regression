@@ -241,7 +241,7 @@ func TestExecuteFails404(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, _, err := executeRequest("http://127.0.0.1:8080/no", "", "GET", []http.Header{})
+	resp, _, err := executeRequest("http://localhost:8080/no", "", "GET", []http.Header{})
 	a.NoError(err)
 
 	a.Equal(404, resp.StatusCode)

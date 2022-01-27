@@ -1,4 +1,4 @@
 # Get coverage
 tests:
-	@go test ./... -coverprofile=/tmp/coverage.out
+	@go test ./... -race -coverprofile=/tmp/coverage.out -covermode=atomic
 	@go tool cover -func=/tmp/coverage.out
