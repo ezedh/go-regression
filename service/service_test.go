@@ -67,12 +67,12 @@ func setupService() *service {
 	}
 }
 
-func setupMockServer() http.Handler {
+func setupMockServer(endpoint string) http.Handler {
 	// create gin server with mock handler
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	r.GET("/test", func(c *gin.Context) {
+	r.GET(endpoint, func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"test": "test",
 		})
@@ -167,7 +167,7 @@ func TestRunSingleTest(t *testing.T) {
 	err := s.GetRegression("/tmp/test_go_regression")
 	a.NoError(err)
 
-	h := setupMockServer()
+	h := setupMockServer("/test")
 	srv := httptest.NewServer(h)
 	s.regre.BaseURL = srv.URL
 	defer srv.Close()
@@ -191,7 +191,7 @@ func TestSingleTestNotPassMissmatchedStatus(t *testing.T) {
 	err := s.GetRegression("/tmp/test_go_regression")
 	a.NoError(err)
 
-	h := setupMockServer()
+	h := setupMockServer("/test")
 	srv := httptest.NewServer(h)
 	s.regre.BaseURL = srv.URL
 	defer srv.Close()
@@ -221,7 +221,7 @@ func TestSingleTestNotPassMissmatchedBody(t *testing.T) {
 	err := s.GetRegression("/tmp/test_go_regression")
 	a.NoError(err)
 
-	h := setupMockServer()
+	h := setupMockServer("/test")
 	srv := httptest.NewServer(h)
 	s.regre.BaseURL = srv.URL
 	defer srv.Close()
@@ -236,13 +236,27 @@ func TestSingleTestNotPassMissmatchedBody(t *testing.T) {
 
 func TestExecuteFails404(t *testing.T) {
 	a := assert.New(t)
+	test := model.Test{
+		Name:           "Test",
+		Subgroup:       "subgroup",
+		Endpoint:       "/test",
+		Method:         "GET",
+		ExpectedStatus: 201,
+	}
 
-	h := setupMockServer()
-	srv := httptest.NewServer(h)
-	defer srv.Close()
-
-	resp, _, err := executeRequest("http://localhost:8080/no", "", "GET", []http.Header{})
+	s := setupService()
+	err := s.GetRegression("/tmp/test_go_regression")
 	a.NoError(err)
 
-	a.Equal(404, resp.StatusCode)
+	h := setupMockServer("/whatever")
+	srv := httptest.NewServer(h)
+	s.regre.BaseURL = srv.URL
+	defer srv.Close()
+
+	res := s.runSingleTest(test)
+
+	a.False(res.Pass)
+	a.Equal(model.StatusMissmatch, res.Cause)
+	a.Equal(201, res.Expected)
+	a.Equal(404, res.Actual)
 }
