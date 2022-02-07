@@ -133,7 +133,11 @@ func TestGenerateReport(t *testing.T) {
 		Name: "Test Regre",
 	}
 
-	s.GenerateReport()
+	s.result = &model.RegressionResult{Total: 1}
+
+	s.GenerateReport(map[string]string{
+		"map": "test",
+	})
 
 	a := assert.New(t)
 
@@ -169,7 +173,7 @@ func TestRunSingleTest(t *testing.T) {
 
 	h := setupMockServer("/test")
 	srv := httptest.NewServer(h)
-	s.regre.BaseURL = srv.URL
+	s.SetBaseURL(srv.URL)
 	defer srv.Close()
 
 	res := s.runSingleTest(test)
@@ -194,7 +198,7 @@ func TestSingleTestNotPassMissmatchedStatus(t *testing.T) {
 
 	h := setupMockServer("/test")
 	srv := httptest.NewServer(h)
-	s.regre.BaseURL = srv.URL
+	s.SetBaseURL(srv.URL)
 	defer srv.Close()
 
 	res := s.runSingleTest(test)
@@ -224,7 +228,7 @@ func TestSingleTestNotPassMissmatchedBody(t *testing.T) {
 
 	h := setupMockServer("/test")
 	srv := httptest.NewServer(h)
-	s.regre.BaseURL = srv.URL
+	s.SetBaseURL(srv.URL)
 	defer srv.Close()
 
 	res := s.runSingleTest(test)
@@ -251,7 +255,7 @@ func TestExecuteFails404(t *testing.T) {
 
 	h := setupMockServer("/whatever")
 	srv := httptest.NewServer(h)
-	s.regre.BaseURL = srv.URL
+	s.SetBaseURL(srv.URL)
 	defer srv.Close()
 
 	res := s.runSingleTest(test)
@@ -278,7 +282,7 @@ func TestExecutePass404(t *testing.T) {
 
 	h := setupMockServer("/whatever")
 	srv := httptest.NewServer(h)
-	s.regre.BaseURL = srv.URL
+	s.SetBaseURL(srv.URL)
 	defer srv.Close()
 
 	res := s.runSingleTest(test)

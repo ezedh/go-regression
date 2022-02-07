@@ -16,7 +16,8 @@ import (
 type Service interface {
 	GetRegression(path string) error
 	RunRegression()
-	GenerateReport()
+	GenerateReport(map[string]string)
+	SetBaseURL(url string)
 }
 
 type service struct {
@@ -29,6 +30,10 @@ func NewService(log *zap.Logger) Service {
 	return &service{
 		log: log.Sugar(),
 	}
+}
+
+func (s *service) SetBaseURL(url string) {
+	s.regre.BaseURL = url
 }
 
 func (s *service) GetRegression(path string) error {
@@ -130,7 +135,7 @@ func (s *service) RunRegression() {
 
 }
 
-func (s *service) GenerateReport() {
+func (s *service) GenerateReport(metadata map[string]string) {
 	s.log.Infow("Generating report")
 
 	// Create report folder
@@ -146,6 +151,8 @@ func (s *service) GenerateReport() {
 		s.log.Errorw("Error creating report file", "error", err)
 		return
 	}
+
+	s.result.Metadata = metadata
 
 	// Marshal the result to json
 	json.NewEncoder(reportFile).Encode(s.result)
