@@ -56,11 +56,12 @@ type (
 	}
 
 	RegressionResult struct {
-		Name    string        `json:"name"`
-		Results []GroupResult `json:"results"`
-		Total   int           `json:"total"`
-		Passed  int           `json:"passed"`
-		Failed  int           `json:"failed"`
+		Name     string            `json:"name"`
+		Metadata map[string]string `json:"metadata"`
+		Results  []GroupResult     `json:"results"`
+		Total    int               `json:"total"`
+		Passed   int               `json:"passed"`
+		Failed   int               `json:"failed"`
 	}
 
 	Cause string
