@@ -77,6 +77,9 @@ func setupMockServer(endpoint string) http.Handler {
 			"test": "test",
 		})
 	})
+	r.GET(endpoint+"/nobody", func(c *gin.Context) {
+		c.JSON(204, nil)
+	})
 
 	return r
 }
@@ -165,6 +168,30 @@ func TestRunSingleTest(t *testing.T) {
 			"test": "test",
 		},
 		ExpectedStatus: 200,
+	}
+
+	s := setupService()
+	err := s.GetRegression("/tmp/test_go_regression")
+	a.NoError(err)
+
+	h := setupMockServer("/test")
+	srv := httptest.NewServer(h)
+	s.SetBaseURL(srv.URL)
+	defer srv.Close()
+
+	res := s.runSingleTest(test)
+
+	a.True(res.Pass)
+}
+
+func TestRunSingleTestNoBody(t *testing.T) {
+	a := assert.New(t)
+	test := model.Test{
+		Name:           "Test",
+		Subgroup:       "subgroup",
+		Endpoint:       "/test/nobody",
+		Method:         "GET",
+		ExpectedStatus: 204,
 	}
 
 	s := setupService()

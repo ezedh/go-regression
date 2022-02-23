@@ -170,10 +170,15 @@ func (s *service) runSingleTest(test model.Test) *model.TestResult {
 	result.Path = test.Endpoint
 	result.Subgroup = test.Subgroup
 
+	var expectBody bool
+	if test.ExpectedBody != nil {
+		expectBody = true
+	}
+
 	// test.Body to io.Reader for request
 	b, _ := json.Marshal(test.Body)
 
-	resp, r, err := executeRequest(s.regre.BaseURL+test.Endpoint, string(b), test.Method, []http.Header{s.regre.Header, test.Header})
+	resp, r, err := executeRequest(s.regre.BaseURL+test.Endpoint, string(b), test.Method, []http.Header{s.regre.Header, test.Header}, expectBody)
 	if err != nil {
 		s.log.Debugw("Error executing request", "error", err)
 		result.Pass = false
@@ -189,7 +194,7 @@ func (s *service) runSingleTest(test model.Test) *model.TestResult {
 		pass = false
 	}
 
-	if pass && test.ExpectedBody != nil && !cmp.Equal(r, test.ExpectedBody) {
+	if pass && expectBody && !cmp.Equal(r, test.ExpectedBody) {
 		cause = model.BodyMissmatch
 		pass = false
 	}
@@ -278,7 +283,7 @@ func (s *service) getTotalsFromGroups(groups []model.GroupResult) (int, int, int
 	return t, p, f
 }
 
-func executeRequest(url, body, method string, headers []http.Header) (*http.Response, map[string]interface{}, error) {
+func executeRequest(url, body, method string, headers []http.Header, expectBody bool) (*http.Response, map[string]interface{}, error) {
 	// Create a new client
 	client := http.Client{}
 
@@ -309,13 +314,15 @@ func executeRequest(url, body, method string, headers []http.Header) (*http.Resp
 	res := make(map[string]interface{})
 
 	// resp.Body to res
-	d, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, err
-	}
-	err = json.Unmarshal(d, &res)
-	if err != nil {
-		return nil, nil, err
+	if expectBody {
+		d, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, nil, err
+		}
+		err = json.Unmarshal(d, &res)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return resp, res, nil
